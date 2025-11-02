@@ -1,0 +1,61 @@
+Python 3.14.0 (tags/v3.14.0:ebf955d, Oct  7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)] on win32
+Enter "help" below or click "Help" above for more information.
+import pygame
+import sys
+
+# Setup
+pygame.init()
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+# Ball
+ball = pygame.Rect(WIDTH//2, HEIGHT//2, 20, 20)
+ball_speed = [5, 5]
+
+# Paddles
+paddle1 = pygame.Rect(50, HEIGHT//2 - 60, 10, 120)
+paddle2 = pygame.Rect(WIDTH - 60, HEIGHT//2 - 60, 10, 120)
+paddle_speed = 6
+
+# Game loop
+while True:
+    screen.fill(BLACK)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    # Ball movement
+    ball.x += ball_speed[0]
+    ball.y += ball_speed[1]
+
+    if ball.top <= 0 or ball.bottom >= HEIGHT:
+        ball_speed[1] *= -1
+    if ball.colliderect(paddle1) or ball.colliderect(paddle2):
+        ball_speed[0] *= -1
+
+    # Paddle movement
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_w] and paddle1.top > 0:
+        paddle1.y -= paddle_speed
+    if keys[pygame.K_s] and paddle1.bottom < HEIGHT:
+        paddle1.y += paddle_speed
+    if keys[pygame.K_UP] and paddle2.top > 0:
+        paddle2.y -= paddle_speed
+    if keys[pygame.K_DOWN] and paddle2.bottom < HEIGHT:
+        paddle2.y += paddle_speed
+
+    # Draw
+    pygame.draw.rect(screen, WHITE, paddle1)
+    pygame.draw.rect(screen, WHITE, paddle2)
+    pygame.draw.ellipse(screen, WHITE, ball)
+    pygame.draw.aaline(screen, WHITE, (WIDTH//2, 0), (WIDTH//2, HEIGHT))
+
+    pygame.display.flip()
+    clock.tick(60)
