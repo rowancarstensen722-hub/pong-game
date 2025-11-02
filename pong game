@@ -1,25 +1,87 @@
-
 import pygame
 import sys
+import random
 
-# Setup
+# Initialize
 pygame.init()
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Pong with Restart")
 clock = pygame.time.Clock()
 
-# Colors
+# Colors and Fonts
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+font = pygame.font.Font(None, 74)
 
-# Ball
-ball = pygame.Rect(WIDTH//2, HEIGHT//2, 20, 20)
-ball_speed = [5, 5]
+# Menus
+def show_menu():
+    screen.fill(BLACK)
+    screen.blit(font.render("1 = Single Player", True, WHITE), (200, 180))
+    screen.blit(font.render("2 = Two Player", True, WHITE), (200, 260))
+    pygame.display.flip()
 
-# Paddles
-paddle1 = pygame.Rect(50, HEIGHT//2 - 60, 10, 120)
-paddle2 = pygame.Rect(WIDTH - 60, HEIGHT//2 - 60, 10, 120)
-paddle_speed = 6
+def show_difficulty():
+    screen.fill(BLACK)
+    screen.blit(font.render("E = Easy", True, WHITE), (280, 180))
+    screen.blit(font.render("M = Medium", True, WHITE), (280, 260))
+    screen.blit(font.render("H = Hard", True, WHITE), (280, 340))
+    pygame.display.flip()
+
+# Ball speed logic
+def get_ball_speed(direction, base=5):
+    speed_x = base * direction
+    speed_y = random.choice([-base, base])
+    return [speed_x, speed_y]
+
+# Game reset logic
+def reset_game():
+    mode = None
+    difficulty = None
+    ai_speed = 5
+
+    while mode is None:
+        show_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    mode = 1
+                elif event.key == pygame.K_2:
+                    mode = 2
+
+    if mode == 1:
+        while difficulty is None:
+            show_difficulty()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_e:
+                        difficulty = "easy"
+                        ai_speed = 3
+                    elif event.key == pygame.K_m:
+                        difficulty = "medium"
+                        ai_speed = 5
+                    elif event.key == pygame.K_h:
+                        difficulty = "hard"
+                        ai_speed = 8
+
+    # Game objects
+    ball = pygame.Rect(WIDTH // 2, HEIGHT // 2, 20, 20)
+    paddle1 = pygame.Rect(50, HEIGHT // 2 - 60, 10, 120)
+    paddle2 = pygame.Rect(WIDTH - 60, HEIGHT // 2 - 60, 10, 120)
+    ball_speed = get_ball_speed(random.choice([-1, 1]))
+    score1 = 0
+    score2 = 0
+
+    return mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2
+
+# Initial game state
+mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
 
 # Game loop
 while True:
@@ -29,6 +91,9 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
 
     # Ball movement
     ball.x += ball_speed[0]
@@ -36,25 +101,47 @@ while True:
 
     if ball.top <= 0 or ball.bottom >= HEIGHT:
         ball_speed[1] *= -1
+
     if ball.colliderect(paddle1) or ball.colliderect(paddle2):
         ball_speed[0] *= -1
+
+    if ball.left < 0:
+        score2 += 1
+        ball.center = (WIDTH - 100, HEIGHT // 2)
+        ball_speed = get_ball_speed(-1)
+    if ball.right > WIDTH:
+        score1 += 1
+        ball.center = (100, HEIGHT // 2)
+        ball_speed = get_ball_speed(1)
 
     # Paddle movement
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w] and paddle1.top > 0:
-        paddle1.y -= paddle_speed
+        paddle1.y -= 6
     if keys[pygame.K_s] and paddle1.bottom < HEIGHT:
-        paddle1.y += paddle_speed
-    if keys[pygame.K_UP] and paddle2.top > 0:
-        paddle2.y -= paddle_speed
-    if keys[pygame.K_DOWN] and paddle2.bottom < HEIGHT:
-        paddle2.y += paddle_speed
+        paddle1.y += 6
 
-    # Draw
+    if mode == 2:
+        if keys[pygame.K_UP] and paddle2.top > 0:
+            paddle2.y -= 6
+        if keys[pygame.K_DOWN] and paddle2.bottom < HEIGHT:
+            paddle2.y += 6
+    else:
+        if paddle2.centery < ball.centery and paddle2.bottom < HEIGHT:
+            paddle2.y += ai_speed
+        elif paddle2.centery > ball.centery and paddle2.top > 0:
+            paddle2.y -= ai_speed
+
+    # Draw everything
     pygame.draw.rect(screen, WHITE, paddle1)
     pygame.draw.rect(screen, WHITE, paddle2)
     pygame.draw.ellipse(screen, WHITE, ball)
-    pygame.draw.aaline(screen, WHITE, (WIDTH//2, 0), (WIDTH//2, HEIGHT))
+    pygame.draw.aaline(screen, WHITE, (WIDTH // 2, 0), (WIDTH // 2, HEIGHT))
+
+    score_text1 = font.render(str(score1), True, WHITE)
+    score_text2 = font.render(str(score2), True, WHITE)
+    screen.blit(score_text1, (WIDTH // 4, 20))
+    screen.blit(score_text2, (WIDTH * 3 // 4, 20))
 
     pygame.display.flip()
     clock.tick(60)
