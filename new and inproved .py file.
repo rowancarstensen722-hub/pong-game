@@ -10,6 +10,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption("Minecraft Pong 3D")
 clock = pygame.time.Clock()
 
+# Colors
 GRASS = (95, 159, 53)
 STONE = (120, 120, 120)
 WHITE = (255, 255, 255)
@@ -22,7 +23,13 @@ def draw_3d_block(rect, color):
     pygame.draw.rect(screen, color, rect)
     pygame.draw.rect(screen, STONE, rect, 3)
 
-def show_menu():
+def show_mode_menu():
+    screen.fill(GRASS)
+    screen.blit(font.render("C = Classic Mode", True, WHITE), (WIDTH//2 - 250, HEIGHT//2 - 100))
+    screen.blit(font.render("T = Turbo Mode", True, WHITE), (WIDTH//2 - 250, HEIGHT//2))
+    pygame.display.flip()
+
+def show_player_menu():
     screen.fill(GRASS)
     screen.blit(font.render("1 = Single Player", True, WHITE), (WIDTH//2 - 250, HEIGHT//2 - 100))
     screen.blit(font.render("2 = Two Player", True, WHITE), (WIDTH//2 - 250, HEIGHT//2))
@@ -56,23 +63,36 @@ def predict_ball_y(ball, speed, paddle_x):
     return predicted_y
 
 def reset_game():
-    mode = None
+    mode_type = None
+    player_mode = None
     difficulty = None
     ai_speed = 5
 
-    while mode is None:
-        show_menu()
+    while mode_type is None:
+        show_mode_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_c:
+                    mode_type = "classic"
+                elif event.key == pygame.K_t:
+                    mode_type = "turbo"
+
+    while player_mode is None:
+        show_player_menu()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
-                    mode = 1
+                    player_mode = 1
                 elif event.key == pygame.K_2:
-                    mode = 2
+                    player_mode = 2
 
-    if mode == 1:
+    if player_mode == 1:
         while difficulty is None:
             show_difficulty()
             for event in pygame.event.get():
@@ -81,164 +101,27 @@ def reset_game():
                     sys.exit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_e:
-                        ai_speed = 3
+                        ai_speed = 4
                         difficulty = "easy"
                     elif event.key == pygame.K_m:
-                        ai_speed = 5
+                        ai_speed = 6
                         difficulty = "medium"
                     elif event.key == pygame.K_h:
-                        ai_speed = 8
+                        ai_speed = 9
                         difficulty = "hard"
 
     ball = pygame.Rect(WIDTH // 2, HEIGHT // 2, 30, 30)
     paddle1 = pygame.Rect(50, HEIGHT // 2 - 60, 20, 120)
     paddle2 = pygame.Rect(WIDTH - 70, HEIGHT // 2 - 60, 20, 120)
-    ball_speed = get_ball_speed(random.choice([-1, 1]))
-    score1 = 0
-    score2 = 0
-    spike_ready = True
-
-    return mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2, spike_ready
-
-mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2, spike_ready = reset_game()
-
-while True:
-    screen.fill(GRASS)
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2, spike_ready = reset_game()
-            if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-                sys.exit()
-            if event.key == pygame.K_LSHIFT and spike_ready:
-                ball_speed[0] *= 3
-                ball_speed[1] *= 3
-                spike_ready = False  # prevent stacking
-
-    # Ball movement
-    ball.x += ball_speed[0]
-    ball.y += ball_speed[1]
-
-    if ball.top <= 0 or ball.bottom >= HEIGHT:
-        ball_speed[1] *= -1
-
-    if ball.colliderect(paddle1) or ball.colliderect(paddle2):
-        ball_speed[0] *= -1
-        spike_ready = True  # reset spike after paddle hit
-
-    if ball.left < 0:
-        score2 += 1
-        ball.center = (WIDTH - 100, HEIGHT // 2)
-        ball_speed = get_ball_speed(-1)
-        spike_ready = True
-    if ball.right > WIDTH:
-        score1 += 1
-        ball.center = (100, HEIGHT // 2)
-        ball_speed = get_ball_speed(1)
-        spike_ready = True
-
-    # Win condition
-    if score1 >= 20:
-        show_winner("Player 1")
-        mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2, spike_ready = reset_game()
-        continue
-    elif score2 >= 20:
-        winner = "Player 2" if mode == 2 else "Computer"
-        show_winner(winner)
-        mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2, spike_ready = reset_game()
-        continue
-
-    # Paddle movement
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_w] and paddle1.top > 0:
-        paddle1.y -= 6
-    if keys[pygame.K_s] and paddle1.bottom < HEIGHT:
-        paddle1.y += 6
-
-    if mode == 2:
-        if keys[pygame.K_UP] and paddle2.top > 0:
-            paddle2.y -= 6
-        if keys[pygame.K_DOWN] and paddle2.bottom < HEIGHT:
-            paddle2.y += 6
-    else:
-        target_y = predict_ball_y(ball, ball_speed, paddle2.x)
-        if paddle2.centery < target_y and paddle2.bottom < HEIGHT:
-            paddle2.y += ai_speed
-        elif paddle2.centery > target_y and paddle2.top > 0:
-            paddle2.y -= ai_speed
-
-    draw_3d_block(paddle1, WHITE)
-    draw_3d_block(paddle2, WHITE)
-    draw_3d_block(ball, WHITE)
-    pygame.draw.aaline(screen, STONE, (WIDTH // 2, 0), (WIDTH // 2, HEIGHT))
-
-    screen.blit(font.render(str(score1), True, WHITE), (WIDTH // 4, 20))
-    screen.blit(font.render(str(score2), True, WHITE), (WIDTH * 3 // 4, 20))
-
-    pygame.display.flip()
-    clock.tick(60)
-
-def predict_ball_y(ball, speed, paddle_x):
-    frames = abs((paddle_x - ball.x) / speed[0])
-    predicted_y = ball.y + speed[1] * frames
-    while predicted_y < 0 or predicted_y > HEIGHT:
-        if predicted_y < 0:
-            predicted_y = -predicted_y
-        elif predicted_y > HEIGHT:
-            predicted_y = 2 * HEIGHT - predicted_y
-    return predicted_y
-
-def reset_game():
-    mode = None
-    difficulty = None
-    ai_speed = 5
-
-    while mode is None:
-        show_menu()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    mode = 1
-                elif event.key == pygame.K_2:
-                    mode = 2
-
-    if mode == 1:
-        while difficulty is None:
-            show_difficulty()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_e:
-                        ai_speed = 3
-                        difficulty = "easy"
-                    elif event.key == pygame.K_m:
-                        ai_speed = 5
-                        difficulty = "medium"
-                    elif event.key == pygame.K_h:
-                        ai_speed = 8
-                        difficulty = "hard"
-
-    ball = pygame.Rect(WIDTH // 2, HEIGHT // 2, 30, 30)
-    paddle1 = pygame.Rect(50, HEIGHT // 2 - 60, 20, 120)
-    paddle2 = pygame.Rect(WIDTH - 70, HEIGHT // 2 - 60, 20, 120)
-    ball_speed = get_ball_speed(random.choice([-1, 1]))
+    base_speed = 5 if mode_type == "classic" else 10
+    ball_speed = get_ball_speed(random.choice([-1, 1]), base=base_speed)
     score1 = 0
     score2 = 0
 
-    return mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2
+    return mode_type, player_mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2
 
 # Start game
-mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
+mode_type, player_mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
 
 while True:
     screen.fill(GRASS)
@@ -249,10 +132,13 @@ while True:
             sys.exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
+                mode_type, player_mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
             if event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 sys.exit()
+
+    keys = pygame.key.get_pressed()
+    shift_pressed = keys[pygame.K_LSHIFT]
 
     # Ball movement
     ball.x += ball_speed[0]
@@ -261,37 +147,40 @@ while True:
     if ball.top <= 0 or ball.bottom >= HEIGHT:
         ball_speed[1] *= -1
 
+    # Paddle collision + spike logic
     if ball.colliderect(paddle1) or ball.colliderect(paddle2):
         ball_speed[0] *= -1
+        if shift_pressed and mode_type == "classic":
+            ball_speed[0] *= 2
+            ball_speed[1] *= 2
 
     if ball.left < 0:
         score2 += 1
         ball.center = (WIDTH - 100, HEIGHT // 2)
-        ball_speed = get_ball_speed(-1)
+        ball_speed = get_ball_speed(-1, base=5 if mode_type == "classic" else 10)
     if ball.right > WIDTH:
         score1 += 1
         ball.center = (100, HEIGHT // 2)
-        ball_speed = get_ball_speed(1)
+        ball_speed = get_ball_speed(1, base=5 if mode_type == "classic" else 10)
 
     # Win condition
     if score1 >= 20:
         show_winner("Player 1")
-        mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
+        mode_type, player_mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
         continue
     elif score2 >= 20:
-        winner = "Player 2" if mode == 2 else "Computer"
+        winner = "Player 2" if player_mode == 2 else "Computer"
         show_winner(winner)
-        mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
+        mode_type, player_mode, difficulty, ai_speed, ball, paddle1, paddle2, ball_speed, score1, score2 = reset_game()
         continue
 
     # Paddle movement
-    keys = pygame.key.get_pressed()
     if keys[pygame.K_w] and paddle1.top > 0:
         paddle1.y -= 6
     if keys[pygame.K_s] and paddle1.bottom < HEIGHT:
         paddle1.y += 6
 
-    if mode == 2:
+    if player_mode == 2:
         if keys[pygame.K_UP] and paddle2.top > 0:
             paddle2.y -= 6
         if keys[pygame.K_DOWN] and paddle2.bottom < HEIGHT:
@@ -303,7 +192,6 @@ while True:
         elif paddle2.centery > target_y and paddle2.top > 0:
             paddle2.y -= ai_speed
 
-    # Draw everything
     draw_3d_block(paddle1, WHITE)
     draw_3d_block(paddle2, WHITE)
     draw_3d_block(ball, WHITE)
